@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background: theme(colors.sauce.black);
+  color: theme(colors.sauce.cream);
+  font-family: theme(fontFamily.body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.noise {
+  background:
+    radial-gradient(120% 90% at 50% 0%, theme(colors.sauce.surface) 0%, theme(colors.sauce.black) 60%),
+    theme(colors.sauce.black);
+}
+.noise::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+}
+.btn-gold {
+  border-radius: 4px;
+  border: 0;
+  background: theme(colors.sauce.gold);
+  color: theme(colors.sauce.black);
+  font-weight: 600;
+  transition: 180ms ease;
+}
+.btn-gold:hover { background: theme(colors.sauce.goldBright); }
+.btn-gold:disabled { background: theme(colors.sauce.goldDim); opacity: .55; }
+.input {
+  border-radius: 6px;
+  border: 1px solid theme(colors.sauce.border);
+  background: theme(colors.sauce.surface);
+  color: theme(colors.sauce.cream);
+  padding: .85rem 1rem;
+  outline: none;
+}
+.input:focus { border-color: theme(colors.sauce.gold); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.confetti {
+  position: absolute;
+  top: 26px;
+  width: 7px;
+  height: 10px;
+  border-radius: 2px;
+  background: theme(colors.sauce.gold);
+  animation: confetti-fall 500ms ease-out forwards;
+}
+@keyframes confetti-fall {
+  from { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  to { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)); }
+}
+@keyframes success-flash {
+  0% { box-shadow: 0 0 0 0 rgba(74, 124, 89, .55); }
+  100% { box-shadow: 0 0 0 14px rgba(74, 124, 89, 0); }
+}
+.animate-success-flash { animation: success-flash 300ms ease-out; }
+a { color: inherit; text-decoration: none; }
