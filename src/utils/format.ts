@@ -31,3 +31,10 @@ export function randomDone(streak: number): string {
 export function inferNiche(raw: string): string {
   return raw.match(/(fitness|ecommerce|coaching|saas|freelance|agency|real estate|content)/i)?.[0] || "Service Business";
 }
+
+const REVENUE_PATTERN = /\b(sale|sold|paid|paying|customer|client|booked|signed|deposit|invoice|revenue|first[\s-]?dollar)\b|\$\s?\d/i;
+
+export function looksLikeRevenue(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return REVENUE_PATTERN.test(text);
+}

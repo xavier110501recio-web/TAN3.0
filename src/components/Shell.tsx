@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { ArrowRight, Bot, Home, Map as MapIcon, Users } from "lucide-react";
+import { ArrowRight, Bot, Home, Map as MapIcon, Plug, Users } from "lucide-react";
 import { readStore, resetDemo } from "../utils/storage";
+import { SkillsList } from "./SkillsList";
+import { SidebarProfile } from "./SidebarProfile";
+import { ShareToast } from "./ShareToast";
 
 const navItems: { to: string; label: string; sub: string }[] = [
   { to: "/dashboard", label: "Today", sub: "01" },
   { to: "/missions", label: "Map", sub: "02" },
   { to: "/coach", label: "Coach", sub: "03" },
   { to: "/community", label: "Crew", sub: "04" },
+  { to: "/stack", label: "Stack", sub: "05" },
 ];
 
 export function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
@@ -34,6 +38,7 @@ export function Folio({ items }: { items: string[] }) {
 
 export function Shell({ children, folio, title }: { children: ReactNode; folio: string[]; title?: string }) {
   const user = readStore("thesauce_user");
+  const skills = user ? readStore("thesauce_skills") : null;
   return (
     <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
       <div className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col md:flex-row md:gap-12 md:px-10 lg:gap-16 lg:px-14">
@@ -47,7 +52,7 @@ export function Shell({ children, folio, title }: { children: ReactNode; folio: 
         </header>
 
         {/* Desktop left rail */}
-        <aside className="hidden md:flex md:sticky md:top-0 md:h-screen md:w-[240px] md:shrink-0 md:flex-col md:gap-10 md:py-10 lg:w-[280px]">
+        <aside className="hidden md:flex md:sticky md:top-0 md:h-screen md:w-[240px] md:shrink-0 md:flex-col md:gap-8 md:overflow-y-auto md:no-scrollbar md:py-10 lg:w-[280px]">
           <div className="flex flex-col gap-5">
             <Wordmark size="lg" />
             <span className="rule rule-strong" />
@@ -62,9 +67,9 @@ export function Shell({ children, folio, title }: { children: ReactNode; folio: 
             </div>
           )}
           <SideNav />
-          <div className="mt-auto flex flex-col gap-3">
-            <span className="rule" />
-            <button onClick={() => { resetDemo(); window.location.reload(); }} className="mono-folio text-left text-sauce-muted hover:text-sauce-gold transition">Reset demo</button>
+          {skills && <SkillsList skills={skills} />}
+          <div className="mt-auto">
+            <SidebarProfile />
           </div>
         </aside>
 
@@ -85,6 +90,7 @@ export function Shell({ children, folio, title }: { children: ReactNode; folio: 
 
         <BottomNav />
       </div>
+      <ShareToast />
     </main>
   );
 }
@@ -119,10 +125,19 @@ function BottomNav() {
   const location = useLocation();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-sauce-hairlineStrong bg-sauce-black/95 backdrop-blur md:hidden">
-      <ul className="mx-auto grid max-w-[640px] grid-cols-4">
+      <ul className="mx-auto grid max-w-[640px] grid-cols-5">
         {navItems.map((item) => {
           const active = location.pathname === item.to;
-          const Icon = item.to === "/dashboard" ? Home : item.to === "/missions" ? MapIcon : item.to === "/coach" ? Bot : Users;
+          const Icon =
+            item.to === "/dashboard"
+              ? Home
+              : item.to === "/missions"
+              ? MapIcon
+              : item.to === "/coach"
+              ? Bot
+              : item.to === "/community"
+              ? Users
+              : Plug;
           return (
             <li key={item.to}>
               <a

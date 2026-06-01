@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
-import type { ChatMessage, CheckIn, CheckInOutcome, Mission, Snapshot } from "../types";
+import { ArrowRight, X } from "lucide-react";
+import type { CheckIn, CheckInOutcome, Mission, Snapshot } from "../types";
 import { readStore, snapshot, updateStore } from "../utils/storage";
-import { generateAlternativeMission, generateCoachResponse } from "../utils/MockCoach";
-import { pad, personalize, randomDone } from "../utils/format";
+import { looksLikeRevenue, pad, personalize, randomDone } from "../utils/format";
+import { emitShareToast } from "../utils/toastBus";
 import { Typing } from "./Typing";
 
 interface MissionCardProps {
@@ -15,16 +14,23 @@ interface MissionCardProps {
   compact?: boolean;
   locked?: boolean;
   message?: string | null;
+  dayLabel?: number;
+  onRequestCoach?: (prompt: string) => void;
 }
 
-type CardSelection = "done" | "too_hard" | "adjust" | "need_help" | null;
+type CoachIntent = "too_hard" | "adjust" | "need_help";
+type ResponseValue = "done" | CoachIntent;
 
-export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, message = null }: MissionCardProps) {
-  const navigate = useNavigate();
-  const [selected, setSelected] = useState<CardSelection>(null);
-  const [note, setNote] = useState("");
-  const [mode, setMode] = useState<"normal" | "loading">("normal");
-  const [localMission, setLocalMission] = useState<Mission>(mission);
+const COACH_PROMPTS: Record<CoachIntent, string> = {
+  too_hard: "Too hard because: ",
+  adjust: "Adjust because: ",
+  need_help: "Help because: ",
+};
+
+export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, message = null, dayLabel, onRequestCoach }: MissionCardProps) {
+  const [pendingDone, setPendingDone] = useState(false);
+  const [mode] = useState<"normal" | "loading">("normal");
+  const [localMission] = useState<Mission>(mission);
   const [doneMessage, setDoneMessage] = useState<string | null>(message);
   const [celebrating, setCelebrating] = useState(false);
   const [oldXp, setOldXp] = useState(state?.user?.execution_score || 0);
@@ -35,18 +41,20 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
   const checkins = state?.checkins || readStore("thesauce_checkins");
   const adjustedCount = checkins.filter((c) => c.mission_number === localMission.mission_number && c.outcome === "adjusted").length;
 
-  const options: [Exclude<CardSelection, null>, string][] = [
+  const options: [ResponseValue, string][] = [
     ["done", "Done"],
     ["too_hard", "Too hard"],
-    ...(adjustedCount >= 2 ? [] : ([["adjust", "Adjust"]] as [Exclude<CardSelection, null>, string][])),
+    ...(adjustedCount >= 2 ? [] : ([["adjust", "Adjust"]] as [ResponseValue, string][])),
     ["need_help", "Help"],
   ];
 
-  function submit() {
-    if (selected === "done") completeMission();
-    if (selected === "too_hard") showSimplified();
-    if (selected === "adjust") adjustMission();
-    if (selected === "need_help") openCoach();
+  function handleSelect(value: ResponseValue) {
+    if (value === "done") {
+      setPendingDone(true);
+      return;
+    }
+    setPendingDone(false);
+    onRequestCoach?.(COACH_PROMPTS[value]);
   }
 
   function saveCheckin(outcome: CheckInOutcome): CheckIn[] {
@@ -54,8 +62,8 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
       date: new Date().toISOString(),
       mission_number: localMission.mission_number,
       outcome,
-      obstacle: outcome === "completed" ? null : note || null,
-      note: note || null,
+      obstacle: null,
+      note: null,
       mood: null,
     }];
     updateStore("thesauce_checkins", next);
@@ -77,7 +85,16 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     userNext.execution_score += current.xp;
     userNext.current_day += 1;
     userNext.current_zone = userNext.current_day > 20 ? 3 : userNext.current_day > 10 ? 2 : 1;
-    if (/sale|sold|paid|customer|client|dollar|revenue|\$/i.test(note)) userNext.first_dollar_badge = true;
+    if (!userNext.first_dollar_badge) {
+      const todayPrefix = today;
+      const recentChats = [
+        ...readStore("thesauce_dashboard_chat"),
+        ...readStore("thesauce_chat_history"),
+      ]
+        .filter((m) => m.role === "user" && m.timestamp.startsWith(todayPrefix))
+        .map((m) => m.content);
+      if (recentChats.some(looksLikeRevenue)) userNext.first_dollar_badge = true;
+    }
     if (streak.last_checkin_date !== today) {
       streak.count += 1;
       streak.last_checkin_date = today;
@@ -92,45 +109,15 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     setNewStreak(streak.count);
     setCelebrating(true);
     setDoneMessage(randomDone(streak.count));
-    setSelected(null);
+    setPendingDone(false);
     onStateChange?.();
-  }
-
-  function showSimplified() {
-    saveCheckin("too_hard");
-    setDoneMessage("Too hard usually means too vague. Here's a smaller version of the same task:");
-    setLocalMission({ ...localMission, task: localMission.simplified_task || localMission.task, simplified: true });
-    setSelected(null);
-    onStateChange?.();
-  }
-
-  function adjustMission() {
-    saveCheckin("adjusted");
-    setMode("loading");
-    setTimeout(() => {
-      const snap = snapshot();
-      const alternative = generateAlternativeMission(localMission, snap.user, note);
-      const missions = snap.missions.map((m) => m.mission_number === localMission.mission_number ? alternative : m);
-      updateStore("thesauce_missions", missions);
-      setLocalMission(alternative);
-      setDoneMessage("Different angle. Same direction.");
-      setMode("normal");
-      setSelected(null);
-      onStateChange?.();
-    }, 1500);
-  }
-
-  function openCoach() {
-    const snap = snapshot();
-    const userMessage: ChatMessage = { role: "user", content: `I need help with: ${localMission.title}`, timestamp: new Date().toISOString() };
-    const coachMessage: ChatMessage = {
-      role: "coach",
-      content: generateCoachResponse(`${userMessage.content}. ${note}`, snap.chat, { ...snap.user, current_mission_title: localMission.title }).response,
-      timestamp: new Date().toISOString(),
-    };
-    updateStore("thesauce_chat_history", [...snap.chat, userMessage, coachMessage]);
-    saveCheckin("need_help");
-    navigate("/coach");
+    if (current.shareable) {
+      setTimeout(() => emitShareToast({
+        intent: "share-win",
+        mission: current,
+        defaultText: "",
+      }), 900);
+    }
   }
 
   if (mode === "loading") {
@@ -171,7 +158,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
         {nextMission && (
           <div className="mt-12">
             <p className="mono-folio mb-4 text-sauce-creamMuted">Up next</p>
-            <MissionCard mission={nextMission} state={snapshot()} onStateChange={onStateChange} />
+            <MissionCard mission={nextMission} state={snapshot()} onStateChange={onStateChange} onRequestCoach={onRequestCoach} />
           </div>
         )}
         {previewMission && (
@@ -193,7 +180,12 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
 
       {/* Mission folio strip */}
       <div className="flex items-center justify-between border-b border-sauce-hairline py-3 mono-folio">
-        <span className="text-sauce-gold">MISSION {pad(localMission.mission_number)}</span>
+        <span className="text-sauce-gold">
+          MISSION {pad(localMission.mission_number)}
+          {dayLabel !== undefined && (
+            <span className="text-sauce-creamMuted"> · DAY {pad(dayLabel)}</span>
+          )}
+        </span>
         <span className="text-sauce-creamMuted">{skillLabel} · +{localMission.xp} XP</span>
       </div>
 
@@ -231,55 +223,47 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
       )}
 
       {!compact && !locked && !celebrating && (
-        <ResponseControls options={options} selected={selected} setSelected={setSelected} note={note} setNote={setNote} submit={submit} />
+        <ResponseControls
+          options={options}
+          pendingDone={pendingDone}
+          onSelect={handleSelect}
+          onConfirmDone={completeMission}
+          onCancelDone={() => setPendingDone(false)}
+        />
       )}
     </section>
   );
 }
 
 interface ResponseControlsProps {
-  options: [Exclude<CardSelection, null>, string][];
-  selected: CardSelection;
-  setSelected: (value: CardSelection) => void;
-  note: string;
-  setNote: (value: string) => void;
-  submit: () => void;
+  options: [ResponseValue, string][];
+  pendingDone: boolean;
+  onSelect: (value: ResponseValue) => void;
+  onConfirmDone: () => void;
+  onCancelDone: () => void;
 }
 
-function ResponseControls({ options, selected, setSelected, note, setNote, submit }: ResponseControlsProps) {
+function ResponseControls({ options, pendingDone, onSelect, onConfirmDone, onCancelDone }: ResponseControlsProps) {
   return (
     <div className="border-t border-sauce-hairlineStrong">
-      {/* Segmented control */}
-      <div role="radiogroup" aria-label="How did it go" className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-sauce-hairlineStrong">
-        {options.map(([value, label]) => {
-          const active = value === selected;
+      <div role="group" aria-label="How did it go" className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-sauce-hairlineStrong">
+        {options.map(([value, label], i) => {
+          const active = value === "done" && pendingDone;
           return (
             <button
               key={value}
-              role="radio"
-              aria-checked={active}
-              onClick={() => setSelected(value)}
+              onClick={() => onSelect(value)}
               className={`group flex flex-col items-start gap-1 py-4 px-3 text-left transition first:pl-0 ${active ? "text-sauce-gold" : "text-sauce-cream hover:text-sauce-gold"}`}
             >
-              <span className="mono-folio text-sauce-muted group-hover:text-sauce-gold">0{options.findIndex(([v]) => v === value) + 1}</span>
+              <span className={`mono-folio ${active ? "text-sauce-gold" : "text-sauce-muted group-hover:text-sauce-gold"}`}>0{i + 1}</span>
               <span className="font-display text-xl font-medium tracking-editorial">{label}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="border-t border-sauce-hairline">
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={1}
-          placeholder="What happened? (optional)"
-          className="no-scrollbar w-full resize-none bg-transparent py-3 font-body text-caption text-sauce-cream outline-none placeholder:text-sauce-muted"
-        />
-      </div>
-
-      <AnimatePresence>
-        {selected && (
+      <AnimatePresence initial={false}>
+        {pendingDone && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -287,10 +271,25 @@ function ResponseControls({ options, selected, setSelected, note, setNote, submi
             transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}
             className="overflow-hidden border-t border-sauce-hairlineStrong"
           >
-            <button onClick={submit} className="btn-gold w-full !justify-between !px-5 !py-4">
-              <span>Submit</span>
-              <ArrowRight size={14} strokeWidth={2} />
-            </button>
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="mono-folio text-sauce-creamMuted">
+                Confirm — locking in completion. <span className="text-sauce-muted">You can't undo this.</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onCancelDone}
+                  className="inline-flex items-center gap-1.5 rounded-sm border border-sauce-borderStrong px-3 py-2 mono-folio text-sauce-creamMuted transition hover:border-sauce-gold hover:text-sauce-gold"
+                >
+                  <X size={11} strokeWidth={1.8} />
+                  Cancel
+                </button>
+                <button type="button" onClick={onConfirmDone} className="btn-gold !px-4 !py-2.5 !text-[11px]">
+                  Confirm done
+                  <ArrowRight size={12} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -9,6 +9,7 @@ import { CheckIn } from "./pages/CheckIn";
 import { Missions } from "./pages/Missions";
 import { Coach } from "./pages/Coach";
 import { Community } from "./pages/Community";
+import { Stack } from "./pages/Stack";
 import { Upgrade } from "./pages/Upgrade";
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
         <Route path="/missions" element={<Guard><Missions /></Guard>} />
         <Route path="/coach" element={<Guard><Coach /></Guard>} />
         <Route path="/community" element={<Guard><Community /></Guard>} />
+        <Route path="/stack" element={<Guard><Stack /></Guard>} />
         <Route path="/upgrade" element={<Upgrade />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

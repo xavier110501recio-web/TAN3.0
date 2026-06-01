@@ -21,6 +21,8 @@ export interface Mission {
   completed_at?: string | null;
   simplified?: boolean;
   adjusted?: boolean;
+  shareable?: boolean;
+  share_prompt?: string;
 }
 
 export type CheckInOutcome =
@@ -74,6 +76,62 @@ export interface Streak {
   last_checkin_date: string | null;
 }
 
+export type ConnectionKind =
+  | "stripe"
+  | "notion"
+  | "linear"
+  | "slack"
+  | "x"
+  | "instagram"
+  | "youtube"
+  | "gmail"
+  | "mcp";
+
+export type ConnectionCategory = "revenue" | "audience" | "ops" | "mcp";
+export type ConnectionStatus = "connected" | "available";
+
+export interface ConnectionMetric {
+  label: string;
+  value: string;
+  delta?: string;
+  trend?: "up" | "down" | "flat";
+}
+
+export interface ConnectionUsage {
+  timestamp: string;
+  action: string;
+  surface: string;
+  result?: string;
+}
+
+export interface Connection {
+  id: string;
+  kind: ConnectionKind;
+  name: string;
+  blurb: string;
+  category: ConnectionCategory;
+  status: ConnectionStatus;
+  connected_at?: string;
+  last_sync?: string;
+  metrics?: ConnectionMetric[];
+  usage?: ConnectionUsage[];
+  fields_pulled?: string[];
+}
+
+export type ResourceKind = "skill" | "mcp" | "repo" | "play" | "signal";
+
+export interface Resource {
+  id: string;
+  kind: ResourceKind;
+  title: string;
+  description: string;
+  source: string;
+  meta: string;
+  tag?: string;
+  href?: string;
+  keywords?: string[];
+}
+
 export interface CommunityPost {
   id: number;
   name: string;
@@ -84,6 +142,29 @@ export interface CommunityPost {
   status?: "open" | "completed";
   timestamp: string;
   reactions: { fire: number; flex: number; bolt: number };
+}
+
+export type InviteKind = "cofounder" | "friend";
+export type InviteStatus = "pending" | "joined" | "declined";
+
+export interface Invite {
+  id: string;
+  kind: InviteKind;
+  name: string;
+  email: string;
+  status: InviteStatus;
+  invited_at: string;
+  joined_at?: string;
+  team_id?: string;
+}
+
+export interface TeamMate {
+  name: string;
+  email: string;
+  role: "cofounder" | "you";
+  current_day: number;
+  current_mission_title?: string;
+  joined_at: string;
 }
 
 export interface User {
@@ -112,6 +193,8 @@ export interface User {
   current_mission_title?: string;
   attachments?: ComposerAttachment[];
   connections?: ComposerConnection[];
+  team_id?: string;
+  team?: TeamMate[];
 }
 
 export interface Snapshot {

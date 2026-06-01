@@ -48,7 +48,9 @@ export default {
         none: "0",
         xs: "2px",
         sm: "3px",
-        md: "4px",
+        md: "5px",
+        lg: "8px",
+        xl: "10px",
       },
       keyframes: {
         "folio-blink": {
