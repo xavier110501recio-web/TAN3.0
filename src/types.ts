@@ -49,6 +49,14 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ComposerAttachment {
   id: string;
   kind: "file";

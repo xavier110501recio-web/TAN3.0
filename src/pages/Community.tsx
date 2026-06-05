@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Check, Copy, Mail, Trophy, UserPlus, Users, X } from "lucide-react";
 import type { CommunityPost, Invite, InviteKind, Mission, Snapshot } from "../types";
@@ -6,6 +6,7 @@ import { readStore, snapshot, updateStore } from "../utils/storage";
 import { pad } from "../utils/format";
 import { quitRateAt } from "../data/quitRates";
 import { Shell } from "../components/Shell";
+import { CommunitySkeleton } from "../components/Skeletons";
 
 type FeedFilter = "wins" | "milestones" | "commitments" | "all";
 
@@ -15,6 +16,12 @@ export function Community() {
   const [content, setContent] = useState("");
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("wins");
   const [inviteOpen, setInviteOpen] = useState<InviteKind | null>(null);
+  // TODO(api): mock skeleton hold — when wiring real API, only show <CommunitySkeleton /> if the request hasn't resolved within ~200ms (otherwise it flickers on fast responses).
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 380);
+    return () => clearTimeout(t);
+  }, []);
 
   const currentMission: Mission | undefined = state.missions.find((m) => m.mission_number === state.user.current_day);
   const dayNum = state.user.current_day;
@@ -74,8 +81,9 @@ export function Community() {
 
   return (
     <Shell folio={folio} title="The crew.">
+      {loading ? <CommunitySkeleton /> : (
       <div className="flex flex-col gap-section animate-screen-enter">
-        <p className="max-w-measure text-lede text-sauce-creamMuted">
+        <p className="-mt-4 mb-[-32px] max-w-measure text-lede text-sauce-creamMuted md:-mt-14 md:mb-[-48px]">
           Build with the people you'd be embarrassed to quit in front of. Invite a cofounder, drag your friends in,
           and watch the rest of the crew ship in real time.
         </p>
@@ -169,7 +177,7 @@ export function Community() {
                 Wins post automatically when you clear a shareable mission. Or file one by hand below.
               </span>
             </div>
-            <div className="flex items-center gap-2 mono-folio">
+            <div className="flex flex-wrap items-center gap-2 mono-folio">
               {(["wins", "milestones", "commitments", "all"] as FeedFilter[]).map((f) => {
                 const active = feedFilter === f;
                 const count = f === "all" ? state.community.length : f === "wins" ? wins.length : state.community.filter((p) => p.type === f.slice(0, -1)).length;
@@ -236,6 +244,7 @@ export function Community() {
           </ol>
         </section>
       </div>
+      )}
 
       <AnimatePresence>
         {inviteOpen && (

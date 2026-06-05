@@ -11,6 +11,8 @@ import { Coach } from "./pages/Coach";
 import { Community } from "./pages/Community";
 import { Stack } from "./pages/Stack";
 import { Upgrade } from "./pages/Upgrade";
+import { Terms } from "./pages/Terms";
+import { Privacy } from "./pages/Privacy";
 
 export function App() {
   useEffect(() => { initStorage(); }, []);
@@ -28,6 +30,8 @@ export function App() {
         <Route path="/community" element={<Guard><Community /></Guard>} />
         <Route path="/stack" element={<Guard><Stack /></Guard>} />
         <Route path="/upgrade" element={<Upgrade />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

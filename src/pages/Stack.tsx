@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Shell } from "../components/Shell";
+import { StackSkeleton } from "../components/Skeletons";
 import { readStore, updateStore } from "../utils/storage";
 import { pad } from "../utils/format";
 import { RESOURCES } from "../data/fieldkit";
@@ -64,6 +65,12 @@ export function Stack() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  // TODO(api): mock skeleton hold — when wiring real API, only show <StackSkeleton /> if the request hasn't resolved within ~200ms (otherwise it flickers on fast responses).
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 380);
+    return () => clearTimeout(t);
+  }, []);
 
   const selected = connections.find((c) => c.id === selectedId) ?? null;
   const folio = ["VOL. 01", "MGMT 05", "STACK & GAINS"];
@@ -130,6 +137,7 @@ export function Stack() {
 
   return (
     <Shell folio={folio} title="The stack.">
+      {loading ? <StackSkeleton /> : (
       <div className="-mt-[clamp(20px,3.5vw,36px)] flex flex-col gap-10 animate-screen-enter">
         {/* ── Top bar: search + filter + helper + chips (tight stack) ── */}
         <section className="flex flex-col">
@@ -225,6 +233,7 @@ export function Stack() {
         {/* ── Field kit ── */}
         <FieldKit />
       </div>
+      )}
     </Shell>
   );
 }

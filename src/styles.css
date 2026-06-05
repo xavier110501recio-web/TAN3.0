@@ -7,11 +7,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 html, body, #root { min-height: 100%; }
-html { background: theme(colors.sauce.black); }
+html { background: theme(colors.sauce.black); overflow-x: clip; }
 body {
   margin: 0;
   background: theme(colors.sauce.black);
   color: theme(colors.sauce.cream);
+  overflow-x: clip;
   font-family: theme(fontFamily.body);
   font-feature-settings: "ss01", "kern", "liga";
   -webkit-font-smoothing: antialiased;

@@ -136,6 +136,12 @@ export function Landing({ preview = false }: { preview?: boolean }) {
               >
                 Privacy policy
               </a>
+              <a
+                href="/terms"
+                className="underline underline-offset-4 decoration-sauce-hairlineStrong transition hover:text-sauce-goldBright hover:decoration-sauce-goldBright"
+              >
+                Terms of service
+              </a>
               {(attachments.length > 0 || connections.length > 0) && (
                 <span className="text-sauce-gold">
                   {attachments.length > 0 && `${attachments.length} file${attachments.length > 1 ? "s" : ""}`}

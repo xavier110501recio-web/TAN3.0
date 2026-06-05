@@ -2,7 +2,7 @@ import { MISSIONS } from "../data/missions";
 import { COMMUNITY_SEEDS } from "../data/communitySeeds";
 import { CONNECTIONS } from "../data/connections";
 import { INVITE_SEEDS } from "../data/inviteSeeds";
-import type { ChatMessage, CheckIn, CommunityPost, Connection, Invite, Mission, Skills, Snapshot, Streak, User } from "../types";
+import type { ChatMessage, ChatSession, CheckIn, CommunityPost, Connection, Invite, Mission, Skills, Snapshot, Streak, User } from "../types";
 
 interface Defaults {
   thesauce_streak: Streak;
@@ -12,6 +12,8 @@ interface Defaults {
   thesauce_community: CommunityPost[];
   thesauce_chat_history: ChatMessage[];
   thesauce_dashboard_chat: ChatMessage[];
+  thesauce_chat_sessions: ChatSession[];
+  thesauce_active_chat_id: string | null;
   thesauce_connections: Connection[];
   thesauce_invites: Invite[];
   thesauce_user: User | null;
@@ -25,6 +27,8 @@ const defaults: Defaults = {
   thesauce_community: COMMUNITY_SEEDS,
   thesauce_chat_history: [{ role: "coach", content: "Tell me the specific thing in the way. Not the whole mess. One thing. Then we solve that and move.", timestamp: new Date().toISOString() }],
   thesauce_dashboard_chat: [],
+  thesauce_chat_sessions: [],
+  thesauce_active_chat_id: null,
   thesauce_connections: CONNECTIONS,
   thesauce_invites: INVITE_SEEDS,
   thesauce_user: null,
@@ -66,6 +70,8 @@ export function freshUserStores(): void {
   updateStore("thesauce_community", COMMUNITY_SEEDS);
   updateStore("thesauce_chat_history", defaults.thesauce_chat_history);
   updateStore("thesauce_dashboard_chat", []);
+  updateStore("thesauce_chat_sessions", []);
+  updateStore("thesauce_active_chat_id", null);
   updateStore("thesauce_connections", CONNECTIONS);
   updateStore("thesauce_invites", INVITE_SEEDS);
 }

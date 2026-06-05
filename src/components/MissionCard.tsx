@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, X } from "lucide-react";
 import type { CheckIn, CheckInOutcome, Mission, Snapshot } from "../types";
@@ -13,8 +13,11 @@ interface MissionCardProps {
   onStateChange?: () => void;
   compact?: boolean;
   locked?: boolean;
-  message?: string | null;
+  dense?: boolean;
+  hideFolio?: boolean;
   dayLabel?: number;
+  notice?: string | null;
+  loading?: boolean;
   onRequestCoach?: (prompt: string) => void;
 }
 
@@ -27,12 +30,17 @@ const COACH_PROMPTS: Record<CoachIntent, string> = {
   need_help: "Help because: ",
 };
 
-export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, message = null, dayLabel, onRequestCoach }: MissionCardProps) {
+export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, dense = false, hideFolio = false, dayLabel, notice = null, loading = false, onRequestCoach }: MissionCardProps) {
   const [pendingDone, setPendingDone] = useState(false);
-  const [mode] = useState<"normal" | "loading">("normal");
-  const [localMission] = useState<Mission>(mission);
-  const [doneMessage, setDoneMessage] = useState<string | null>(message);
+  const [localMission, setLocalMission] = useState<Mission>(mission);
+  const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+
+  useEffect(() => {
+    if (celebrating) return;
+    setLocalMission(mission);
+  }, [mission, celebrating]);
+
   const [oldXp, setOldXp] = useState(state?.user?.execution_score || 0);
   const [newXp, setNewXp] = useState(state?.user?.execution_score || 0);
   const [oldStreak, setOldStreak] = useState(state?.streak?.count || 0);
@@ -108,7 +116,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     setNewXp(userNext.execution_score);
     setNewStreak(streak.count);
     setCelebrating(true);
-    setDoneMessage(randomDone(streak.count));
+    setCelebrationMessage(randomDone(streak.count));
     setPendingDone(false);
     onStateChange?.();
     if (current.shareable) {
@@ -120,7 +128,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     }
   }
 
-  if (mode === "loading") {
+  if (loading) {
     return (
       <section className="border-y border-sauce-hairlineStrong py-12 text-center">
         <p className="mono-folio mb-4 text-sauce-gold">Re-typesetting</p>
@@ -141,7 +149,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
           <div>
             <p className="mono-folio mb-3 text-sauce-gold">Mission complete</p>
             <p className="font-display text-[clamp(28px,4vw,40px)] font-medium italic leading-[1.15] tracking-editorial text-sauce-cream">
-              “{doneMessage}”
+              “{celebrationMessage}”
             </p>
           </div>
           <div className="grid grid-cols-2 border-y border-sauce-hairlineStrong divide-x divide-sauce-hairlineStrong md:border-l md:border-y-0 md:pl-0">
@@ -174,29 +182,42 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
 
   return (
     <section className={`relative border-y ${locked ? "border-sauce-hairline opacity-50" : "border-sauce-gold/45"}`}>
-      {doneMessage && (
-        <p className="border-b border-sauce-hairline py-3 mono-folio text-sauce-gold">{doneMessage}</p>
-      )}
+      <AnimatePresence initial={false}>
+        {notice && (
+          <motion.p
+            key={notice}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
+            className="overflow-hidden border-b border-sauce-hairline py-3 mono-folio text-sauce-gold"
+          >
+            {notice}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {/* Mission folio strip */}
-      <div className="flex items-center justify-between border-b border-sauce-hairline py-3 mono-folio">
-        <span className="text-sauce-gold">
-          MISSION {pad(localMission.mission_number)}
-          {dayLabel !== undefined && (
-            <span className="text-sauce-creamMuted"> · DAY {pad(dayLabel)}</span>
-          )}
-        </span>
-        <span className="text-sauce-creamMuted">{skillLabel} · +{localMission.xp} XP</span>
-      </div>
+      {!hideFolio && (
+        <div className="flex items-center justify-between border-b border-sauce-hairline py-3 mono-folio">
+          <span className="text-sauce-gold">
+            MISSION {pad(localMission.mission_number)}
+            {dayLabel !== undefined && (
+              <span className="text-sauce-creamMuted"> · DAY {pad(dayLabel)}</span>
+            )}
+          </span>
+          <span className="text-sauce-creamMuted">{skillLabel} · +{localMission.xp} XP</span>
+        </div>
+      )}
 
-      {/* Title + body grid — desktop puts the giant numeral in the margin */}
-      <div className="grid grid-cols-1 gap-6 py-8 md:grid-cols-[1fr_140px] md:gap-12 md:py-10">
+      {/* Title + body — dense mode stacks single column; default puts numeral in the margin */}
+      <div className={`grid grid-cols-1 gap-6 py-8 md:py-10 ${dense ? "" : "md:grid-cols-[1fr_140px] md:gap-12"}`}>
         <div className="md:order-1">
-          <h2 className={`font-display font-semibold leading-[0.95] tracking-tightest text-sauce-cream ${compact ? "text-[clamp(28px,4vw,36px)]" : "text-[clamp(36px,5vw,56px)]"}`}>
+          <h2 className={`font-display font-semibold leading-[0.95] tracking-tightest text-sauce-cream ${dense ? "text-[clamp(28px,3vw,36px)]" : compact ? "text-[clamp(28px,4vw,36px)]" : "text-[clamp(36px,5vw,56px)]"}`}>
             {localMission.title}
           </h2>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className={`mt-8 grid grid-cols-1 gap-6 ${dense ? "" : "md:grid-cols-2"}`}>
             <div>
               <p className="mono-folio mb-2 text-sauce-creamMuted">Task</p>
               <p className="font-body text-body leading-[1.6] text-sauce-cream">{personalize(localMission.task, user)}</p>
@@ -208,12 +229,14 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
           </div>
         </div>
 
-        {/* Giant marginal numeral — desktop only */}
-        <div className="hidden md:order-2 md:flex md:items-start md:justify-end">
-          <span aria-hidden className="figure-display text-[180px] text-sauce-gold opacity-90">
-            {pad(localMission.mission_number)}
-          </span>
-        </div>
+        {/* Giant marginal numeral — default layout only */}
+        {!dense && (
+          <div className="hidden md:order-2 md:flex md:items-start md:justify-end">
+            <span aria-hidden className="figure-display text-[180px] text-sauce-gold opacity-90">
+              {pad(localMission.mission_number)}
+            </span>
+          </div>
+        )}
       </div>
 
       {!compact && !locked && !celebrating && adjustedCount >= 2 && (
@@ -246,14 +269,14 @@ interface ResponseControlsProps {
 function ResponseControls({ options, pendingDone, onSelect, onConfirmDone, onCancelDone }: ResponseControlsProps) {
   return (
     <div className="border-t border-sauce-hairlineStrong">
-      <div role="group" aria-label="How did it go" className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-sauce-hairlineStrong">
+      <div role="group" aria-label="How did it go" className="grid grid-cols-2 divide-x divide-y divide-sauce-hairlineStrong sm:grid-cols-4 sm:divide-y-0 [&>*:nth-child(3)]:!border-l-0 sm:[&>*:nth-child(3)]:!border-l">
         {options.map(([value, label], i) => {
           const active = value === "done" && pendingDone;
           return (
             <button
               key={value}
               onClick={() => onSelect(value)}
-              className={`group flex flex-col items-start gap-1 py-4 px-3 text-left transition first:pl-0 ${active ? "text-sauce-gold" : "text-sauce-cream hover:text-sauce-gold"}`}
+              className={`group flex flex-col items-start gap-1 px-4 py-4 text-left transition ${active ? "text-sauce-gold" : "text-sauce-cream hover:text-sauce-gold"}`}
             >
               <span className={`mono-folio ${active ? "text-sauce-gold" : "text-sauce-muted group-hover:text-sauce-gold"}`}>0{i + 1}</span>
               <span className="font-display text-xl font-medium tracking-editorial">{label}</span>

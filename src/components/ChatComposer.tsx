@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Mic, Square } from "lucide-react";
 
 /* ─── Web Speech API typing (minimal, browser-prefixed) ─── */
@@ -155,7 +156,7 @@ export function ChatComposer({ onSend, placeholder = "Ask about this mission.", 
           <span className="text-sauce-muted">Web Speech API · live transcript</span>
         </div>
       )}
-      <div className="flex items-end gap-2 px-3 py-2 md:px-4 md:py-3">
+      <div className={`flex gap-2 px-3 py-2 md:px-4 md:py-3 ${isStarter ? "items-end" : "items-center"}`}>
         <div className="flex-1">
           <textarea
             ref={textareaRef}
@@ -166,30 +167,44 @@ export function ChatComposer({ onSend, placeholder = "Ask about this mission.", 
             rows={isStarter ? 3 : 1}
             autoFocus={autoFocus}
             readOnly={recording && interim.length > 0}
-            className={`no-scrollbar w-full resize-none bg-transparent font-body text-body leading-[1.5] text-sauce-cream outline-none placeholder:text-sauce-muted ${isStarter ? "min-h-[72px]" : "min-h-[28px] max-h-32"}`}
+            className={`no-scrollbar w-full resize-none bg-transparent font-body text-body leading-[1.5] text-sauce-cream outline-none placeholder:text-sauce-muted ${isStarter ? "min-h-[72px]" : "min-h-[36px] max-h-32 py-[6px]"}`}
             style={{ overflowY: "auto" }}
           />
         </div>
-        <div className="flex items-center gap-1 pb-1">
-          {supported && (
-            <button
-              type="button"
-              onClick={recording ? stopRecording : startRecording}
-              aria-label={recording ? "Stop recording" : "Start voice input"}
-              className={`grid h-9 w-9 place-items-center rounded-md border transition ${recording ? "border-sauce-gold bg-sauce-gold/10 text-sauce-gold" : "border-sauce-borderStrong text-sauce-cream hover:border-sauce-gold hover:text-sauce-gold"}`}
-            >
-              {recording ? <Square size={11} strokeWidth={2} fill="currentColor" /> : <Mic size={13} strokeWidth={1.8} />}
-            </button>
-          )}
+        <div className={`flex items-center ${isStarter ? "pb-1" : ""}`}>
           <button
             type="button"
-            onClick={send}
-            disabled={!text.trim()}
-            aria-label="Send"
-            className="grid h-9 w-9 place-items-center rounded-md bg-sauce-gold text-sauce-black transition hover:bg-sauce-goldBright disabled:bg-sauce-goldDim disabled:text-sauce-black/50"
+            onClick={recording ? stopRecording : startRecording}
+            disabled={!supported}
+            aria-label={!supported ? "Voice unsupported in this browser" : recording ? "Stop recording" : "Start voice input"}
+            title={!supported ? "Voice unsupported in this browser" : recording ? "Stop recording" : "Start voice input"}
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-md border transition ${
+              recording
+                ? "border-sauce-gold bg-sauce-gold/10 text-sauce-gold"
+                : supported
+                  ? "border-sauce-borderStrong text-sauce-cream hover:border-sauce-gold hover:text-sauce-gold"
+                  : "border-sauce-borderStrong text-sauce-muted hover:border-sauce-borderStrong cursor-not-allowed"
+            }`}
           >
-            <ArrowRight size={14} strokeWidth={2} />
+            {recording ? <Square size={11} strokeWidth={2} fill="currentColor" /> : <Mic size={13} strokeWidth={1.8} />}
           </button>
+          <AnimatePresence initial={false}>
+            {text.trim().length > 0 && (
+              <motion.button
+                key="send"
+                type="button"
+                onClick={send}
+                aria-label="Send"
+                initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                animate={{ width: 36, opacity: 1, marginLeft: 4 }}
+                exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                transition={{ duration: 0.26, ease: [0.2, 0.7, 0.2, 1] }}
+                className="grid h-9 shrink-0 place-items-center overflow-hidden rounded-md bg-sauce-gold text-sauce-black transition-colors hover:bg-sauce-goldBright"
+              >
+                <ArrowRight size={14} strokeWidth={2} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       {isStarter && (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronsUpDown, RotateCcw, Shield, Sparkles } from "lucide-react";
+import { ChevronsUpDown, FileText, RotateCcw, Shield, Sparkles } from "lucide-react";
 import { readStore, resetDemo } from "../utils/storage";
 
 export function SidebarProfile() {
@@ -73,6 +73,7 @@ export function SidebarProfile() {
             {/* Static items */}
             <div className="border-t border-sauce-hairlineStrong">
               <MenuItem icon={<Shield size={13} strokeWidth={1.8} />} label="Privacy policy" onClick={() => go("/privacy")} />
+              <MenuItem icon={<FileText size={13} strokeWidth={1.8} />} label="Terms of service" onClick={() => go("/terms")} />
             </div>
 
             {/* Destructive */}
