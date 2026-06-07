@@ -46,7 +46,7 @@ export function CheckIn() {
 
   if (done) {
     return (
-      <Shell folio={folio} title="Debrief.">
+      <Shell folio={folio} title="Debrief." hideFolio>
         <div className="flex flex-col gap-10 animate-screen-enter">
           <blockquote className="border-y border-sauce-hairlineStrong py-8 font-display text-[clamp(22px,3vw,30px)] font-medium italic leading-[1.3] tracking-editorial text-sauce-cream">
             “{done.coachMessage}”
@@ -72,7 +72,7 @@ export function CheckIn() {
   ];
 
   return (
-    <Shell folio={folio} title="Check in.">
+    <Shell folio={folio} title="Check in." hideFolio>
       <div className="flex flex-col gap-12 animate-screen-enter">
         <p className="max-w-measure text-lede text-sauce-creamMuted">
           Report what happened. The mission is only complete after this. Honest beats positive.

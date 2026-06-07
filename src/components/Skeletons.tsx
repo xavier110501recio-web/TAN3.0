@@ -21,22 +21,41 @@ function SkeletonLine({ className = "" }: { className?: string }) {
 
 /* ───────── Dashboard ───────── */
 
-export function DashboardSkeleton() {
+export function DashboardSkeleton({ hideMissionLabel = false, hideStatsRow = false }: { hideMissionLabel?: boolean; hideStatsRow?: boolean } = {}) {
   return (
     <div className="flex flex-col gap-12 animate-screen-enter" aria-busy="true">
       {/* Stats row */}
-      <section className="grid grid-cols-3 border-y border-sauce-hairlineStrong divide-x divide-sauce-hairlineStrong">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex flex-col gap-3 px-4 py-5">
-            <SkeletonLine className="w-14" />
-            <SkeletonBlock className="h-9 w-20" />
+      {!hideStatsRow && (
+        <section className="grid grid-cols-3 border-y border-sauce-hairlineStrong divide-x divide-sauce-hairlineStrong">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col gap-1.5 px-4 py-3">
+              <SkeletonLine className="w-14" />
+              <SkeletonBlock className="h-7 w-16" />
+            </div>
+          ))}
+        </section>
+      )}
+      {hideStatsRow && (
+        <section className="border-y border-sauce-hairlineStrong py-6">
+          <div className="flex flex-col gap-3">
+            <SkeletonLine className="w-44" />
+            <SkeletonBlock className="h-9 w-3/4" />
+            <SkeletonLine className="w-1/2" />
           </div>
-        ))}
-      </section>
+          <div className="mt-6 grid grid-cols-3 divide-x divide-sauce-hairline border-t border-sauce-hairline pt-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col gap-1.5 px-4 first:pl-0">
+                <SkeletonLine className="w-20" />
+                <SkeletonBlock className="h-6 w-14" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Mission section */}
       <div className="mx-auto w-full max-w-[720px]">
-        <SkeletonLine className="mb-4 w-36" />
+        {!hideMissionLabel && <SkeletonLine className="mb-4 w-36" />}
         <div className="border-y border-sauce-gold/40">
           <div className="flex items-center justify-between border-b border-sauce-hairline px-1 py-3">
             <SkeletonLine className="w-40" />

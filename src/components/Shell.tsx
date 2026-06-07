@@ -38,7 +38,7 @@ export function Folio({ items }: { items: string[] }) {
 
 export type SidebarMode = "full" | "minimal";
 
-export function Shell({ children, folio, title, sidebarMode = "full", fullscreen = false }: { children: ReactNode; folio: string[]; title?: string; sidebarMode?: SidebarMode; fullscreen?: boolean }) {
+export function Shell({ children, folio, title, sidebarMode = "full", fullscreen = false, hideFolio = false, sidebarStats }: { children: ReactNode; folio: string[]; title?: string; sidebarMode?: SidebarMode; fullscreen?: boolean; hideFolio?: boolean; sidebarStats?: ReactNode }) {
   const user = readStore("thesauce_user");
   const skills = user ? readStore("thesauce_skills") : null;
   const minimal = sidebarMode === "minimal";
@@ -51,7 +51,7 @@ export function Shell({ children, folio, title, sidebarMode = "full", fullscreen
             <Wordmark />
             <button onClick={() => { resetDemo(); window.location.reload(); }} className="mono-folio text-sauce-muted hover:text-sauce-gold transition">Reset</button>
           </div>
-          <Folio items={folio} />
+          {!hideFolio && <Folio items={folio} />}
         </header>
 
         {/* Desktop left rail — width animates between full and minimal */}
@@ -66,18 +66,31 @@ export function Shell({ children, folio, title, sidebarMode = "full", fullscreen
             <div className="transition-opacity duration-300">
               {minimal ? <Wordmark size="md" /> : <Wordmark size="lg" />}
             </div>
-            <span className="rule rule-strong" />
-            <div className="flex flex-col gap-2 mono-folio text-sauce-creamMuted leading-relaxed">
-              {folio.map((line, i) => <span key={i}>{line}</span>)}
-            </div>
+            {sidebarStats && !minimal && <div className="transition-opacity duration-300">{sidebarStats}</div>}
+            {!hideFolio && <span className="rule rule-strong" />}
+            {!hideFolio && (
+              <div className="flex flex-col gap-2 mono-folio text-sauce-creamMuted leading-relaxed">
+                {folio.map((line, i) => <span key={i}>{line}</span>)}
+              </div>
+            )}
           </div>
+          {/* Compact nav — only visible when sidebar is minimal */}
+          <div
+            className={`transition-all duration-[280ms] ease-[cubic-bezier(.2,.7,.2,1)] ${
+              minimal ? "mt-8 max-h-[2000px] opacity-100" : "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden opacity-0"
+            }`}
+            aria-hidden={!minimal}
+          >
+            <CompactNav />
+          </div>
+          {/* Full content — only visible when sidebar is full */}
           <div
             className={`flex flex-col gap-8 transition-all duration-[280ms] ease-[cubic-bezier(.2,.7,.2,1)] ${
               minimal ? "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden opacity-0" : "mt-8 max-h-[2000px] translate-y-0 opacity-100"
             }`}
             aria-hidden={minimal}
           >
-            {user && (
+            {user && !hideFolio && (
               <div className="flex flex-col gap-1 mono-label text-sauce-muted">
                 <span className="text-sauce-gold">Streak {user.current_day > 0 ? readStore("thesauce_streak").count : 0}</span>
                 <span>+{user.execution_score} XP</span>
@@ -135,6 +148,38 @@ function SideNav() {
           );
         })}
       </ul>
+    </nav>
+  );
+}
+
+function CompactNav() {
+  const location = useLocation();
+  return (
+    <nav className="flex flex-col gap-0.5">
+      <span className="mb-3 mono-folio text-sauce-muted">Sections</span>
+      {navItems.map((item) => {
+        const Icon =
+          item.to === "/dashboard" ? Home
+          : item.to === "/missions" ? MapIcon
+          : item.to === "/coach" ? Bot
+          : item.to === "/community" ? Users
+          : Plug;
+        const active = location.pathname === item.to;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`group flex items-center gap-2.5 rounded-md px-2 py-2 mono-folio transition ${
+              active
+                ? "bg-sauce-surface/60 text-sauce-gold"
+                : "text-sauce-creamMuted hover:bg-sauce-surface/40 hover:text-sauce-cream"
+            }`}
+          >
+            <Icon size={13} strokeWidth={1.7} className={active ? "text-sauce-gold" : "text-sauce-muted group-hover:text-sauce-cream"} />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

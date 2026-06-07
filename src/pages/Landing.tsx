@@ -6,7 +6,7 @@ import type { ComposerAttachment, ComposerConnection } from "../types";
 import { freshUserStores, readStore, resetDemo, updateStore } from "../utils/storage";
 import { inferNiche } from "../utils/format";
 import { IdeaComposer } from "../components/IdeaComposer";
-import { Folio, Wordmark } from "../components/Shell";
+import { Wordmark } from "../components/Shell";
 
 export function Landing({ preview = false }: { preview?: boolean }) {
   const navigate = useNavigate();
@@ -58,10 +58,9 @@ export function Landing({ preview = false }: { preview?: boolean }) {
   return (
     <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
       <div className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-gutter">
-        {/* Top folio strip — the masthead */}
-        <header className="flex items-center justify-between border-b border-sauce-hairlineStrong py-5">
+        {/* Top masthead */}
+        <header className="flex items-center border-b border-sauce-hairlineStrong py-5">
           <Wordmark />
-          <Folio items={["VOL. 01", "ISSUE — TODAY", "FREE"]} />
         </header>
 
         {/* Hero — editorial spread */}
@@ -92,6 +91,19 @@ export function Landing({ preview = false }: { preview?: boolean }) {
                   <div>
                     <h3 className="font-display text-2xl font-medium tracking-editorial">{head}</h3>
                     <p className="mt-2 font-body text-caption text-sauce-creamMuted">{body}</p>
+                    {num === "I" && (
+                      <a
+                        href="#dump-form"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          document.getElementById("dump-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="mt-4 inline-flex items-center gap-2 rounded-sm bg-sauce-gold px-4 py-2.5 mono-folio text-sauce-black transition hover:bg-sauce-goldBright md:hidden"
+                      >
+                        Dump my idea
+                        <ArrowRight size={12} strokeWidth={2} />
+                      </a>
+                    )}
                   </div>
                 </li>
               ))}
@@ -99,16 +111,8 @@ export function Landing({ preview = false }: { preview?: boolean }) {
           </aside>
         </section>
 
-        {/* Pull quote */}
-        <section className="border-y border-sauce-hairlineStrong py-section">
-          <blockquote className="mx-auto max-w-[36ch] font-display text-[clamp(28px,4vw,44px)] font-medium italic leading-[1.15] tracking-editorial text-sauce-cream">
-            “Done and imperfect beats planned and perfect every time.”
-          </blockquote>
-          <p className="mt-5 mono-folio text-sauce-gold">— Philosophy 01 · Speed and execution</p>
-        </section>
-
         {/* Dump form — main CTA */}
-        <section className="grid grid-cols-1 gap-10 pt-section pb-section md:grid-cols-12">
+        <section id="dump-form" className="grid grid-cols-1 gap-10 border-t border-sauce-hairlineStrong pt-section pb-section md:grid-cols-12 scroll-mt-6">
           <div className="md:col-span-5 lg:col-span-4">
             <p className="mono-folio mb-4 text-sauce-gold">Step 01 — Open with the truth</p>
             <h2 className="font-display text-[clamp(36px,5vw,56px)] font-semibold leading-[0.95] tracking-tightest text-sauce-cream">
@@ -151,6 +155,14 @@ export function Landing({ preview = false }: { preview?: boolean }) {
               )}
             </div>
           </div>
+        </section>
+
+        {/* Pull quote */}
+        <section className="border-y border-sauce-hairlineStrong py-section">
+          <blockquote className="mx-auto max-w-[36ch] font-display text-[clamp(28px,4vw,44px)] font-medium italic leading-[1.15] tracking-editorial text-sauce-cream">
+            “Done and imperfect beats planned and perfect every time.”
+          </blockquote>
+          <p className="mt-5 mono-folio text-sauce-gold">— Philosophy 01 · Speed and execution</p>
         </section>
 
         {/* What you get — feature ledger */}

@@ -17,7 +17,7 @@ export function Missions() {
   const folio = ["VOL. 01", `ZONE ${roman(user.current_zone)}`, "MISSION MAP"];
 
   return (
-    <Shell folio={folio}>
+    <Shell folio={folio} hideFolio>
       {loading ? (
         <MissionsSkeleton />
       ) : (

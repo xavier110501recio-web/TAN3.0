@@ -157,14 +157,14 @@ export function Coach() {
 
   if (pageLoading) {
     return (
-      <Shell folio={folio} fullscreen>
+      <Shell folio={folio} fullscreen hideFolio>
         <CoachSkeleton />
       </Shell>
     );
   }
 
   return (
-    <Shell folio={folio} fullscreen>
+    <Shell folio={folio} fullscreen hideFolio>
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Header: chat picker + new */}
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sauce-hairlineStrong pb-3">

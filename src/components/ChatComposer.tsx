@@ -207,12 +207,6 @@ export function ChatComposer({ onSend, placeholder = "Ask about this mission.", 
           </AnimatePresence>
         </div>
       </div>
-      {isStarter && (
-        <div className="flex items-center justify-between border-t border-sauce-hairline px-4 py-2 mono-folio text-sauce-muted">
-          <span>Press <span className="text-sauce-creamMuted">Enter</span> to send · Shift+Enter for new line</span>
-          {supported ? <span>Voice ready</span> : <span>Voice unsupported in this browser</span>}
-        </div>
-      )}
     </div>
   );
 }

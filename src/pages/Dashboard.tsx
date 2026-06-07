@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Map as MapIcon, PanelRightOpen, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Map as MapIcon, MessageSquare, PanelRightOpen, RotateCcw, X } from "lucide-react";
 import type { ChatMessage, Mission, Snapshot } from "../types";
 import { readStore, snapshot, updateStore } from "../utils/storage";
 import { generateAlternativeMission, generateCoachResponse } from "../utils/MockCoach";
@@ -12,6 +12,7 @@ import { MissionCard } from "../components/MissionCard";
 import { ChatComposer, type ComposerPrefill } from "../components/ChatComposer";
 import { RoadmapView } from "../components/RoadmapView";
 import { DashboardSkeleton } from "../components/Skeletons";
+import { AttritionStrip } from "../components/AttritionStrip";
 
 type DashView = "mission" | "roadmap";
 
@@ -29,6 +30,16 @@ export function Dashboard() {
   const [missionLoading, setMissionLoading] = useState(false);
   // TODO(api): mock skeleton hold — when wiring real API, only show <DashboardSkeleton /> if the request hasn't resolved within ~200ms (otherwise it flickers on fast responses).
   const [pageLoading, setPageLoading] = useState(true);
+
+  // A/B test: variant "B" moves the 3 stats into the sidebar and shows the attrition curve in the main content.
+  const [attritionAb, setAttritionAb] = useState<"A" | "B">(() => {
+    if (typeof window === "undefined") return "A";
+    return (localStorage.getItem("thesauce_dash_attrition_ab") as "A" | "B") || "A";
+  });
+  useEffect(() => {
+    localStorage.setItem("thesauce_dash_attrition_ab", attritionAb);
+  }, [attritionAb]);
+  const showAttrition = attritionAb === "B";
 
   useEffect(() => {
     const t = setTimeout(() => setPageLoading(false), 380);
@@ -130,6 +141,14 @@ export function Dashboard() {
     </section>
   );
 
+  const sidebarStatsBlock = (
+    <section className="grid grid-cols-3 border-y border-sauce-hairlineStrong divide-x divide-sauce-hairlineStrong">
+      <SidebarStat label="Streak" value={pad(state.streak.count)} suffix="d" />
+      <SidebarStat label="XP" value={String(state.user.execution_score)} />
+      <SidebarStat label="Zone" value={roman(state.user.current_zone)} />
+    </section>
+  );
+
   const inRoadmap = view === "roadmap";
   const roadmapButton = (
     <button
@@ -143,18 +162,18 @@ export function Dashboard() {
 
   if (pageLoading) {
     return (
-      <Shell folio={folio} sidebarMode="full">
-        <DashboardSkeleton />
+      <Shell folio={folio} sidebarMode="full" hideFolio sidebarStats={showAttrition ? sidebarStatsBlock : undefined}>
+        <DashboardSkeleton hideMissionLabel hideStatsRow={showAttrition} />
       </Shell>
     );
   }
 
   return (
-    <Shell folio={folio} sidebarMode={chatVisible ? "minimal" : "full"} fullscreen={chatVisible}>
+    <Shell folio={folio} sidebarMode={chatVisible ? "minimal" : "full"} fullscreen={chatVisible} hideFolio sidebarStats={showAttrition ? sidebarStatsBlock : undefined}>
       {revenueWin && state.user.first_dollar_badge && <Celebration user={state.user} />}
 
-      <div className={`flex flex-col gap-12 ${chatVisible ? "min-h-0 flex-1" : ""}`}>
-        <div className="shrink-0">{statsRow}</div>
+      <div className={`flex flex-col ${showAttrition ? "gap-6" : "gap-12"} ${chatVisible ? "min-h-0 flex-1" : ""}`}>
+        <div className="shrink-0">{showAttrition ? <AttritionStrip dayNum={state.user.current_day} hideBottomBorder /> : statsRow}</div>
 
         <LayoutGroup>
           <AnimatePresence mode="wait" initial={false}>
@@ -169,14 +188,11 @@ export function Dashboard() {
                 className="flex flex-col items-stretch gap-10"
               >
                 <div className="mx-auto w-full max-w-[720px]">
-                  <p className="mono-folio mb-4 text-sauce-creamMuted">
-                    {inRoadmap ? "The map" : "Today's mission"}
-                  </p>
                   <motion.div layoutId="dash-mission">
                     <AnimatePresence mode="wait">
                       {!inRoadmap ? (
                         <motion.div key="mission" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}>
-                          <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} onRequestCoach={requestCoach} />
+                          <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} onRequestCoach={requestCoach} proofMode />
                         </motion.div>
                       ) : (
                         <motion.div key="roadmap" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}>
@@ -193,9 +209,19 @@ export function Dashboard() {
                   transition={{ duration: 0.32, delay: 0.1, ease: [0.2, 0.7, 0.2, 1] }}
                   className="mx-auto w-full max-w-[720px]"
                 >
-                  <p className="mono-folio mb-3 text-sauce-gold">
-                    {chatStarted ? `Resume chat · ${dashChat.length} message${dashChat.length === 1 ? "" : "s"}` : "Stuck? Ask the coach."}
-                  </p>
+                  {chatStarted ? (
+                    <button
+                      type="button"
+                      onClick={() => setChatHidden(false)}
+                      className="group mb-3 inline-flex items-center gap-2 rounded-full border border-sauce-gold/40 bg-sauce-gold/10 px-3 py-1.5 mono-folio text-sauce-gold transition hover:border-sauce-gold hover:bg-sauce-gold/20"
+                    >
+                      <MessageSquare size={11} strokeWidth={1.8} />
+                      Resume chat
+                      <span className="text-sauce-creamMuted transition group-hover:text-sauce-gold">· {dashChat.length} message{dashChat.length === 1 ? "" : "s"}</span>
+                    </button>
+                  ) : (
+                    <p className="mono-folio mb-3 text-sauce-gold">Stuck? Ask the coach.</p>
+                  )}
                   <ChatComposer
                     onSend={sendMessage}
                     placeholder={chatStarted ? "Add to the conversation." : "Type or speak — what's in the way of today's task?"}
@@ -281,15 +307,13 @@ export function Dashboard() {
 
                   {/* Mission side — section header pinned, card body scrolls */}
                   <div className="flex shrink-0 flex-col border-l border-sauce-hairlineStrong pl-8 md:w-[clamp(340px,30vw,400px)] lg:w-[clamp(360px,28vw,420px)]">
-                    <p className="mono-folio mb-4 shrink-0 text-sauce-creamMuted">
-                      {inRoadmap ? "The map" : "Today's mission"}
-                    </p>
+
                     <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
                       <motion.div layoutId="dash-mission">
                         <AnimatePresence mode="wait">
                           {!inRoadmap ? (
                             <motion.div key="mission" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}>
-                              <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} dense onRequestCoach={requestCoach} />
+                              <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} dense onRequestCoach={requestCoach} proofMode />
                             </motion.div>
                           ) : (
                             <motion.div key="roadmap" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}>
@@ -337,11 +361,24 @@ export function Dashboard() {
                   <X size={18} strokeWidth={1.6} />
                 </button>
               </div>
-              <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} hideFolio onRequestCoach={requestCoach} />
+              <MissionCard mission={mission} state={state} onStateChange={() => setState(snapshot())} dayLabel={state.user.current_day} notice={missionNotice} loading={missionLoading} hideFolio onRequestCoach={requestCoach} proofMode />
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* A/B test toggle — variant B moves stats to sidebar and shows attrition curve in content */}
+      <button
+        type="button"
+        onClick={() => setAttritionAb(showAttrition ? "A" : "B")}
+        aria-label={`A/B variant — currently ${attritionAb}, click to switch`}
+        title={`A/B variant — currently ${attritionAb}, click to switch`}
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-sauce-borderStrong bg-sauce-ink/90 px-3 py-2 mono-folio text-sauce-creamMuted shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur transition hover:border-sauce-gold hover:text-sauce-gold md:bottom-6"
+      >
+        <span className="text-sauce-muted">A/B</span>
+        <span aria-hidden className="h-3 w-px bg-sauce-hairlineStrong" />
+        <span className={`font-semibold ${showAttrition ? "text-sauce-gold" : "text-sauce-cream"}`}>{attritionAb}</span>
+      </button>
 
       {/* Floating "Back to today's task" — only when viewing roadmap */}
       <AnimatePresence>
@@ -365,6 +402,18 @@ export function Dashboard() {
         )}
       </AnimatePresence>
     </Shell>
+  );
+}
+
+function SidebarStat({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
+  return (
+    <div className="flex flex-col gap-1 px-2 py-2.5 first:pl-0 last:pr-0">
+      <span className="mono-folio text-sauce-muted">{label}</span>
+      <span className="flex items-baseline gap-1">
+        <span className="font-display text-xl font-medium tabular leading-none text-sauce-cream">{value}</span>
+        {suffix && <span className="mono-folio text-sauce-creamMuted">{suffix}</span>}
+      </span>
+    </div>
   );
 }
 

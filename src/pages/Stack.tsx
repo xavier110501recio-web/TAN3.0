@@ -136,7 +136,7 @@ export function Stack() {
   }
 
   return (
-    <Shell folio={folio} title="The stack.">
+    <Shell folio={folio} title="The stack." hideFolio>
       {loading ? <StackSkeleton /> : (
       <div className="-mt-[clamp(20px,3.5vw,36px)] flex flex-col gap-10 animate-screen-enter">
         {/* ── Top bar: search + filter + helper + chips (tight stack) ── */}

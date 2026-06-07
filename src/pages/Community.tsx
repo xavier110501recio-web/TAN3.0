@@ -4,9 +4,9 @@ import { ArrowRight, Check, Copy, Mail, Trophy, UserPlus, Users, X } from "lucid
 import type { CommunityPost, Invite, InviteKind, Mission, Snapshot } from "../types";
 import { readStore, snapshot, updateStore } from "../utils/storage";
 import { pad } from "../utils/format";
-import { quitRateAt } from "../data/quitRates";
 import { Shell } from "../components/Shell";
 import { CommunitySkeleton } from "../components/Skeletons";
+import { AttritionStrip } from "../components/AttritionStrip";
 
 type FeedFilter = "wins" | "milestones" | "commitments" | "all";
 
@@ -25,8 +25,6 @@ export function Community() {
 
   const currentMission: Mission | undefined = state.missions.find((m) => m.mission_number === state.user.current_day);
   const dayNum = state.user.current_day;
-  const quitRate = quitRateAt(Math.max(1, Math.min(30, dayNum)));
-  const survivorRate = 100 - quitRate;
 
   const wins = useMemo(() => state.community.filter((p) => p.type === "win"), [state.community]);
   const filteredFeed = useMemo(() => {
@@ -80,7 +78,7 @@ export function Community() {
   const folio = ["VOL. 01", `CREW 04`, `${state.community.length} DISPATCHES`];
 
   return (
-    <Shell folio={folio} title="The crew.">
+    <Shell folio={folio} title="The crew." hideFolio>
       {loading ? <CommunitySkeleton /> : (
       <div className="flex flex-col gap-section animate-screen-enter">
         <p className="-mt-4 mb-[-32px] max-w-measure text-lede text-sauce-creamMuted md:-mt-14 md:mb-[-48px]">
@@ -146,27 +144,7 @@ export function Community() {
         </section>
 
         {/* ─── Quit-rate motivation strip ─── */}
-        {currentMission && (
-          <section className="border-y border-sauce-hairlineStrong py-6">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_auto] md:items-end">
-              <div className="flex flex-col gap-2">
-                <span className="mono-folio text-sauce-gold">The attrition curve · Day {pad(dayNum)}</span>
-                <p className="font-display text-[clamp(26px,3.6vw,38px)] font-medium italic leading-[1.1] tracking-editorial text-sauce-cream">
-                  <span className="text-sauce-gold tabular not-italic">{quitRate}%</span> of users quit before finishing this mission.
-                </p>
-                <p className="mono-folio text-sauce-creamMuted">
-                  You're in the {survivorRate}% who didn't. Keep it that way.
-                </p>
-              </div>
-              <AttritionBar percent={quitRate} />
-            </div>
-            <div className="mt-6 grid grid-cols-3 divide-x divide-sauce-hairline border-t border-sauce-hairline">
-              <Stat label="Quit before this mission" value={`${quitRate}%`} />
-              <Stat label="Made it this far" value={`${survivorRate}%`} />
-              <Stat label="Survivor rank" value={rankFor(survivorRate)} />
-            </div>
-          </section>
-        )}
+        {currentMission && <AttritionStrip dayNum={dayNum} />}
 
         {/* ─── Dispatch feed ─── */}
         <section className="flex flex-col gap-6">
@@ -257,48 +235,6 @@ export function Community() {
       </AnimatePresence>
     </Shell>
   );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex flex-col gap-1 px-4 py-3 first:pl-0">
-      <span className="mono-folio text-sauce-muted">{label}</span>
-      <span className="font-display text-2xl font-medium tabular text-sauce-cream">{value}</span>
-    </div>
-  );
-}
-
-function AttritionBar({ percent }: { percent: number }) {
-  const segments = 20;
-  const lost = Math.round((percent / 100) * segments);
-  return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex gap-[3px]">
-        {Array.from({ length: segments }).map((_, i) => {
-          const isLost = i < lost;
-          return (
-            <span
-              key={i}
-              className={`h-7 w-[6px] ${isLost ? "bg-sauce-muted/35" : "bg-sauce-gold"}`}
-              aria-hidden
-            />
-          );
-        })}
-      </div>
-      <span className="mono-folio text-sauce-muted">
-        <span className="text-sauce-creamMuted">{lost}</span> quit · <span className="text-sauce-gold">{segments - lost}</span> still moving
-      </span>
-    </div>
-  );
-}
-
-function rankFor(survivorRate: number): string {
-  if (survivorRate >= 90) return "Top 90%";
-  if (survivorRate >= 75) return "Top 75%";
-  if (survivorRate >= 50) return "Top half";
-  if (survivorRate >= 35) return "Top third";
-  if (survivorRate >= 25) return "Top quarter";
-  return `Top ${survivorRate}%`;
 }
 
 interface InviteCardProps {

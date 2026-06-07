@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, X } from "lucide-react";
 import type { CheckIn, CheckInOutcome, Mission, Snapshot } from "../types";
 import { readStore, snapshot, updateStore } from "../utils/storage";
-import { looksLikeRevenue, pad, personalize, randomDone } from "../utils/format";
+import { inferProofShape, looksLikeRevenue, pad, personalize, randomDone } from "../utils/format";
 import { emitShareToast } from "../utils/toastBus";
 import { Typing } from "./Typing";
 
@@ -19,6 +19,7 @@ interface MissionCardProps {
   notice?: string | null;
   loading?: boolean;
   onRequestCoach?: (prompt: string) => void;
+  proofMode?: boolean;
 }
 
 type CoachIntent = "too_hard" | "adjust" | "need_help";
@@ -30,7 +31,7 @@ const COACH_PROMPTS: Record<CoachIntent, string> = {
   need_help: "Help because: ",
 };
 
-export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, dense = false, hideFolio = false, dayLabel, notice = null, loading = false, onRequestCoach }: MissionCardProps) {
+export function MissionCard({ mission, state, onStateChange, compact = false, locked = false, dense = false, hideFolio = false, dayLabel, notice = null, loading = false, onRequestCoach, proofMode = false }: MissionCardProps) {
   const [pendingDone, setPendingDone] = useState(false);
   const [localMission, setLocalMission] = useState<Mission>(mission);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
@@ -65,20 +66,20 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     onRequestCoach?.(COACH_PROMPTS[value]);
   }
 
-  function saveCheckin(outcome: CheckInOutcome): CheckIn[] {
+  function saveCheckin(outcome: CheckInOutcome, note: string | null = null): CheckIn[] {
     const next: CheckIn[] = [...readStore("thesauce_checkins"), {
       date: new Date().toISOString(),
       mission_number: localMission.mission_number,
       outcome,
       obstacle: null,
-      note: null,
+      note,
       mood: null,
     }];
     updateStore("thesauce_checkins", next);
     return next;
   }
 
-  function completeMission() {
+  function completeMission(proofNote: string | null = null) {
     const snap = snapshot();
     const current = localMission;
     const today = new Date().toISOString().slice(0, 10);
@@ -112,7 +113,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
     updateStore("thesauce_missions", missions);
     updateStore("thesauce_skills", skills);
     updateStore("thesauce_streak", streak);
-    saveCheckin("completed");
+    saveCheckin("completed", proofNote);
     setNewXp(userNext.execution_score);
     setNewStreak(streak.count);
     setCelebrating(true);
@@ -166,7 +167,7 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
         {nextMission && (
           <div className="mt-12">
             <p className="mono-folio mb-4 text-sauce-creamMuted">Up next</p>
-            <MissionCard mission={nextMission} state={snapshot()} onStateChange={onStateChange} onRequestCoach={onRequestCoach} />
+            <MissionCard mission={nextMission} state={snapshot()} onStateChange={onStateChange} onRequestCoach={onRequestCoach} proofMode={proofMode} />
           </div>
         )}
         {previewMission && (
@@ -246,13 +247,22 @@ export function MissionCard({ mission, state, onStateChange, compact = false, lo
       )}
 
       {!compact && !locked && !celebrating && (
-        <ResponseControls
-          options={options}
-          pendingDone={pendingDone}
-          onSelect={handleSelect}
-          onConfirmDone={completeMission}
-          onCancelDone={() => setPendingDone(false)}
-        />
+        proofMode ? (
+          <ProofOfWork
+            mission={localMission}
+            onSubmit={(note) => completeMission(note)}
+            onCoachIntent={(intent) => onRequestCoach?.(COACH_PROMPTS[intent])}
+            dense={dense}
+          />
+        ) : (
+          <ResponseControls
+            options={options}
+            pendingDone={pendingDone}
+            onSelect={handleSelect}
+            onConfirmDone={completeMission}
+            onCancelDone={() => setPendingDone(false)}
+          />
+        )
       )}
     </section>
   );
@@ -317,6 +327,108 @@ function ResponseControls({ options, pendingDone, onSelect, onConfirmDone, onCan
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+interface ProofOfWorkProps {
+  mission: Mission;
+  onSubmit: (note: string) => void;
+  onCoachIntent: (intent: CoachIntent) => void;
+  dense?: boolean;
+}
+
+function ProofOfWork({ mission, onSubmit, onCoachIntent, dense = false }: ProofOfWorkProps) {
+  const [note, setNote] = useState("");
+  const shape = inferProofShape(mission);
+  const canSubmit = note.trim().length > 0;
+
+  const textareaEl = (
+    <textarea
+      value={note}
+      onChange={(e) => setNote(e.target.value)}
+      placeholder={shape.placeholder}
+      rows={4}
+      className="no-scrollbar block w-full resize-none rounded-lg border border-sauce-hairlineStrong bg-sauce-ink/60 px-4 py-3 font-body text-body leading-[1.5] text-sauce-cream placeholder:text-sauce-muted focus:border-sauce-gold focus:outline-none"
+    />
+  );
+
+  const actionRow = (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <CoachChip label="Too hard" onClick={() => onCoachIntent("too_hard")} />
+        <CoachChip label="Adjust" onClick={() => onCoachIntent("adjust")} />
+        <CoachChip label="Help" onClick={() => onCoachIntent("need_help")} />
+      </div>
+      <button
+        type="button"
+        onClick={() => canSubmit && onSubmit(note.trim())}
+        disabled={!canSubmit}
+        className="inline-flex items-center gap-2 rounded-sm bg-sauce-gold px-5 py-2.5 mono-folio text-sauce-black transition hover:bg-sauce-goldBright disabled:cursor-not-allowed disabled:bg-sauce-borderStrong disabled:text-sauce-muted disabled:hover:bg-sauce-borderStrong"
+      >
+        Submit work
+        <ArrowRight size={12} strokeWidth={2} />
+      </button>
+    </div>
+  );
+
+  const criteriaBlock = (
+    <div>
+      <p className="mono-folio mb-3 text-sauce-creamMuted">We'll look for</p>
+      <ul className="flex flex-col gap-2.5">
+        {shape.lookFor.map((item, i) => (
+          <li key={i} className="flex gap-2.5 font-body text-caption leading-[1.5] text-sauce-cream">
+            <span aria-hidden className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full bg-sauce-gold" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  if (dense) {
+    return (
+      <div className="border-t border-sauce-hairlineStrong">
+        <div className="flex flex-col gap-6 px-4 py-6">
+          <div>
+            <p className="mono-folio mb-3 text-sauce-gold">Proof of work</p>
+            {textareaEl}
+            {actionRow}
+          </div>
+          <div className="border-t border-sauce-hairline pt-6">
+            {criteriaBlock}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-sauce-hairlineStrong">
+      <div className="grid grid-cols-1 gap-7 px-4 py-6 md:grid-cols-[1fr_260px] md:gap-10 md:px-5 md:py-7">
+        {/* Criteria — top on mobile, right column on desktop */}
+        <div className="order-1 border-b border-sauce-hairline pb-6 md:order-2 md:border-b-0 md:border-l md:pb-0 md:pl-8">
+          {criteriaBlock}
+        </div>
+        {/* Submission */}
+        <div className="order-2 md:order-1">
+          <p className="mono-folio mb-3 text-sauce-gold">Proof of work</p>
+          {textareaEl}
+          {actionRow}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CoachChip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border border-sauce-hairlineStrong bg-sauce-ink/60 px-3 py-1.5 mono-folio text-sauce-creamMuted transition hover:border-sauce-gold hover:bg-sauce-surface/60 hover:text-sauce-gold"
+    >
+      {label}
+    </button>
   );
 }
 
