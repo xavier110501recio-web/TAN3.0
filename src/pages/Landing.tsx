@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import type { ComposerAttachment, ComposerConnection } from "../types";
-import { freshUserStores, readStore, resetDemo, updateStore } from "../utils/storage";
-import { inferNiche } from "../utils/format";
+import { resetDemo } from "../utils/storage";
+import { useAuth } from "../lib/useAuth";
 import { IdeaComposer } from "../components/IdeaComposer";
 import { Wordmark } from "../components/Shell";
 
 export function Landing({ preview = false }: { preview?: boolean }) {
   const navigate = useNavigate();
-  const user = readStore("thesauce_user");
+  const { session, loading: authLoading } = useAuth();
   const [heroIdea, setHeroIdea] = useState("");
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [connections, setConnections] = useState<ComposerConnection[]>([]);
@@ -22,9 +22,8 @@ export function Landing({ preview = false }: { preview?: boolean }) {
       navigate("/", { replace: true });
       return;
     }
-    if (!preview && user?.onboarding_complete) navigate("/dashboard", { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!preview && !authLoading && session) navigate("/dashboard", { replace: true });
+  }, [authLoading, session, preview, navigate]);
 
   const live = ["Maya finished Mission 4", "Tyler made his first $47", "Jordan posted before overthinking", "Priya booked a client"];
   const [liveIndex, setLiveIndex] = useState(0);
@@ -35,24 +34,9 @@ export function Landing({ preview = false }: { preview?: boolean }) {
   }, []);
 
   function generateFromHero() {
-    const raw = heroIdea.trim();
-    if (raw.length < 20) {
-      navigate("/start", { state: { rawDump: heroIdea } });
-      return;
-    }
-    const now = new Date().toISOString();
-    freshUserStores();
-    updateStore("thesauce_user", {
-      name: "Builder", email: "", city: "",
-      raw_dump: raw, goal: raw.slice(0, 160), idea_type: "service", niche: inferNiche(raw),
-      blockers: ["I don't know where to start"], daily_time: "30 minutes", budget: "$0",
-      current_situation: "Building on the side", existing_skills: "None stated",
-      ninety_day_target: "Make my first dollar outside my job",
-      current_day: 1, current_zone: 1, is_pro: false, execution_score: 0,
-      onboarding_complete: true, plan_summary_seen: false, community_anonymous: false, joined_at: now,
-      attachments, connections,
-    });
-    navigate("/generating");
+    // Hand the dump off to the auth flow; after login the Dashboard's
+    // onboarding card picks it back up via router state.
+    navigate("/login", { state: { rawDump: heroIdea, attachments, connections } });
   }
 
   return (

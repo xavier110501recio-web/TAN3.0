@@ -3,6 +3,7 @@ import { COMMUNITY_SEEDS } from "../data/communitySeeds";
 import { CONNECTIONS } from "../data/connections";
 import { INVITE_SEEDS } from "../data/inviteSeeds";
 import type { ChatMessage, ChatSession, CheckIn, CommunityPost, Connection, Invite, Mission, Skills, Snapshot, Streak, User } from "../types";
+import type { MeSnapshot } from "../api/types";
 
 interface Defaults {
   thesauce_streak: Streak;
@@ -74,6 +75,44 @@ export function freshUserStores(): void {
   updateStore("thesauce_active_chat_id", null);
   updateStore("thesauce_connections", CONNECTIONS);
   updateStore("thesauce_invites", INVITE_SEEDS);
+}
+
+/**
+ * Mirror a server-side MeSnapshot into the localStorage keys the existing
+ * pages still read from. Transitional shim — when each page migrates to
+ * calling `api.*` directly, drop the corresponding write here.
+ */
+export function bootstrapFromSnapshot(snap: MeSnapshot): void {
+  const p = snap.profile;
+  const user: User = {
+    name: p.name,
+    email: p.email ?? "",
+    city: p.city,
+    raw_dump: p.raw_dump,
+    goal: p.goal,
+    idea_type: p.idea_type,
+    niche: p.niche,
+    blockers: p.blockers,
+    daily_time: p.daily_time,
+    budget: p.budget,
+    current_situation: p.current_situation,
+    existing_skills: p.existing_skills,
+    ninety_day_target: p.ninety_day_target,
+    current_day: p.current_day,
+    current_zone: p.current_zone,
+    is_pro: p.is_pro,
+    execution_score: p.execution_score,
+    onboarding_complete: p.onboarding_complete,
+    plan_summary_seen: p.plan_summary_seen,
+    community_anonymous: p.community_anonymous,
+    joined_at: p.joined_at,
+    first_dollar_badge: p.first_dollar_badge,
+    current_mission_title: p.current_mission_title ?? undefined,
+    team_id: p.team_id ?? undefined,
+  };
+  updateStore("thesauce_user", user);
+  updateStore("thesauce_streak", snap.streak);
+  updateStore("thesauce_skills", snap.skills);
 }
 
 export function snapshot(): Snapshot {

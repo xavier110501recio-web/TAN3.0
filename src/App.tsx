@@ -1,7 +1,10 @@
 import { useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { initStorage, readStore } from "./utils/storage";
+import { initStorage } from "./utils/storage";
+import { useAuth } from "./lib/useAuth";
 import { Landing } from "./pages/Landing";
+import { Login } from "./pages/Login";
+import { AuthCallback } from "./pages/AuthCallback";
 import { Start } from "./pages/Start";
 import { Generating } from "./pages/Generating";
 import { Dashboard } from "./pages/Dashboard";
@@ -21,8 +24,10 @@ export function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/landing" element={<Landing preview />} />
-        <Route path="/start" element={<Start />} />
-        <Route path="/generating" element={<Generating />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/start" element={<Guard><Start /></Guard>} />
+        <Route path="/generating" element={<Guard><Generating /></Guard>} />
         <Route path="/dashboard" element={<Guard><Dashboard /></Guard>} />
         <Route path="/checkin" element={<Guard><CheckIn /></Guard>} />
         <Route path="/missions" element={<Guard><Missions /></Guard>} />
@@ -39,9 +44,8 @@ export function App() {
 }
 
 function Guard({ children }: { children: ReactNode }) {
-  const user = readStore("thesauce_user");
-  if (!user) return <Navigate to="/" replace />;
-  if (!user.onboarding_complete) return <Navigate to="/start" replace />;
-  if (!user.is_pro && user.current_day > 10) return <Navigate to="/upgrade" replace />;
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  if (!session) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

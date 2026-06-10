@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { ArrowLeft, ChevronDown, Map as MapIcon, MessageSquare, PanelRightOpen, RotateCcw, X } from "lucide-react";
 import type { ChatMessage, Mission, Snapshot } from "../types";
-import { readStore, snapshot, updateStore } from "../utils/storage";
+import { bootstrapFromSnapshot, readStore, snapshot, updateStore } from "../utils/storage";
 import { generateAlternativeMission, generateCoachResponse } from "../utils/MockCoach";
 import { pad, roman } from "../utils/format";
-import { Shell } from "../components/Shell";
+import { useMe } from "../lib/useMe";
+import { Shell, Wordmark } from "../components/Shell";
 import { Stat } from "../components/Stat";
 import { Celebration } from "../components/Celebration";
 import { MissionCard } from "../components/MissionCard";
@@ -13,6 +15,7 @@ import { ChatComposer, type ComposerPrefill } from "../components/ChatComposer";
 import { RoadmapView } from "../components/RoadmapView";
 import { DashboardSkeleton } from "../components/Skeletons";
 import { AttritionStrip } from "../components/AttritionStrip";
+import { OnboardingCard } from "../components/OnboardingCard";
 
 type DashView = "mission" | "roadmap";
 
@@ -20,6 +23,58 @@ const TOO_HARD_PATTERN = /^\s*too\s+hard\s+because\s*:?\s*/i;
 const ADJUST_PATTERN = /^\s*adjust\s+because\s*:?\s*/i;
 
 export function Dashboard() {
+  const { snapshot: me, loading, error, setSnapshot } = useMe();
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
+        <div className="mx-auto flex min-h-screen w-full max-w-[820px] flex-col items-center justify-center px-gutter">
+          <Wordmark size="sm" />
+          <p className="mt-8 mono-folio text-sauce-creamMuted">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error?.status === 401) return <Navigate to="/login" replace />;
+  if (error || !me) {
+    return (
+      <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
+        <div className="mx-auto flex min-h-screen w-full max-w-[820px] flex-col items-center justify-center gap-6 px-gutter text-center">
+          <Wordmark size="sm" />
+          <p className="mono-folio text-sauce-gold">{error?.message ?? "Couldn't load your profile."}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!me.profile.onboarding_complete) {
+    return (
+      <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-gutter">
+          <header className="flex items-center justify-between border-b border-sauce-hairlineStrong py-5">
+            <Wordmark size="sm" />
+          </header>
+          <div className="flex flex-1 items-center justify-center py-section">
+            <OnboardingCard
+              defaultName={me.profile.name}
+              defaultCity={me.profile.city}
+              defaultDump={me.profile.raw_dump}
+              onComplete={setSnapshot}
+            />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Onboarded — mirror server snapshot into the localStorage keys the
+  // existing dashboard UI still reads from, then render it.
+  bootstrapFromSnapshot(me);
+  return <DashboardActive />;
+}
+
+function DashboardActive() {
   const [state, setState] = useState<Snapshot>(snapshot);
   const [dashChat, setDashChat] = useState<ChatMessage[]>(() => readStore("thesauce_dashboard_chat"));
   const [view, setView] = useState<DashView>("mission");
