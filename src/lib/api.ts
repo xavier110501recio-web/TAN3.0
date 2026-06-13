@@ -1,5 +1,12 @@
 import { supabase } from "./supabase";
-import type { MeSnapshot, OnboardingPayload } from "../api/types";
+import type {
+  ApiCheckIn,
+  ApiMission,
+  CheckInCreate,
+  CheckInResult,
+  MeSnapshot,
+  OnboardingPayload,
+} from "../api/types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -49,5 +56,15 @@ export const api = {
   onboarding: {
     submit: (payload: OnboardingPayload) =>
       request<MeSnapshot>("POST", "/api/v1/onboarding", payload),
+  },
+  missions: {
+    list: () => request<ApiMission[]>("GET", "/api/v1/missions"),
+    current: () => request<ApiMission>("GET", "/api/v1/missions/current"),
+  },
+  checkins: {
+    submit: (payload: CheckInCreate) =>
+      request<CheckInResult>("POST", "/api/v1/checkins", payload),
+    recent: (limit = 5) =>
+      request<ApiCheckIn[]>("GET", `/api/v1/checkins?limit=${limit}`),
   },
 };

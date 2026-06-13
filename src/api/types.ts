@@ -79,3 +79,62 @@ export interface OnboardingPayload {
   current_situation?: string;
   existing_skills?: string;
 }
+
+export interface ApiMission {
+  id: string;
+  mission_number: number;
+  zone: number;
+  title: string;
+  task: string;
+  why: string;
+  skill: Skill;
+  xp: number;
+  simplified_task: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  simplified: boolean;
+  adjusted: boolean;
+  shareable: boolean;
+  share_prompt: string | null;
+}
+
+export type CheckInOutcome =
+  | "completed"
+  | "completed_with_issue"
+  | "partial"
+  | "done"
+  | "too_hard"
+  | "adjusted"
+  | "need_help";
+
+export interface ApiCheckIn {
+  id: string;
+  date: string;
+  mission_number: number;
+  outcome: CheckInOutcome;
+  obstacle: string | null;
+  note: string | null;
+  mood: number | null;
+}
+
+export interface CheckInCreate {
+  mission_number: number;
+  outcome: CheckInOutcome;
+  obstacle?: string | null;
+  note?: string | null;
+  mood?: number | null;
+}
+
+export interface SkillIncrement {
+  skill: Skill;
+  amount: number;
+}
+
+export interface CheckInResult {
+  checkin: ApiCheckIn;
+  snapshot: MeSnapshot;
+  next_mission: ApiMission | null;
+  xp_earned: number;
+  skill_increment: SkillIncrement;
+  coach_message: string;
+}

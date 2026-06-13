@@ -3,7 +3,7 @@ import { COMMUNITY_SEEDS } from "../data/communitySeeds";
 import { CONNECTIONS } from "../data/connections";
 import { INVITE_SEEDS } from "../data/inviteSeeds";
 import type { ChatMessage, ChatSession, CheckIn, CommunityPost, Connection, Invite, Mission, Skills, Snapshot, Streak, User } from "../types";
-import type { MeSnapshot } from "../api/types";
+import type { ApiMission, MeSnapshot } from "../api/types";
 
 interface Defaults {
   thesauce_streak: Streak;
@@ -113,6 +113,39 @@ export function bootstrapFromSnapshot(snap: MeSnapshot): void {
   updateStore("thesauce_user", user);
   updateStore("thesauce_streak", snap.streak);
   updateStore("thesauce_skills", snap.skills);
+}
+
+/**
+ * Convert API mission shape (nullable fields) into the legacy in-app
+ * Mission shape (optional fields) used by components like RoadmapView
+ * and MissionCard. Strip out fields the UI doesn't read (id).
+ */
+export function apiMissionToLegacy(m: ApiMission): Mission {
+  return {
+    mission_number: m.mission_number,
+    zone: m.zone,
+    title: m.title,
+    task: m.task,
+    why: m.why,
+    skill: m.skill,
+    xp: m.xp,
+    simplified_task: m.simplified_task ?? undefined,
+    completed: m.completed,
+    completed_at: m.completed_at,
+    simplified: m.simplified,
+    adjusted: m.adjusted,
+    shareable: m.shareable,
+    share_prompt: m.share_prompt ?? undefined,
+  };
+}
+
+/**
+ * Mirror server-side missions into localStorage so the existing pages
+ * (Dashboard / Missions / CheckIn) keep reading from there during the
+ * transition. Drop this once those pages call api.missions directly.
+ */
+export function bootstrapMissionsFromApi(missions: ApiMission[]): void {
+  updateStore("thesauce_missions", missions.map(apiMissionToLegacy));
 }
 
 export function snapshot(): Snapshot {

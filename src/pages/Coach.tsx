@@ -140,7 +140,7 @@ export function Coach() {
       title: firstUser ? titleFromMessage(firstUser.content) : "Previous conversation",
       messages: legacyHistory,
       created_at: legacyHistory[0]?.timestamp || new Date().toISOString(),
-      updated_at: legacyHistory.at(-1)?.timestamp || new Date().toISOString(),
+      updated_at: legacyHistory[legacyHistory.length - 1]?.timestamp || new Date().toISOString(),
     };
     persistSessions([session, ...sessions]);
     persistActive(session.id);

@@ -3,10 +3,11 @@ import { Navigate } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { ArrowLeft, ChevronDown, Map as MapIcon, MessageSquare, PanelRightOpen, RotateCcw, X } from "lucide-react";
 import type { ChatMessage, Mission, Snapshot } from "../types";
-import { bootstrapFromSnapshot, readStore, snapshot, updateStore } from "../utils/storage";
+import { bootstrapFromSnapshot, bootstrapMissionsFromApi, readStore, snapshot, updateStore } from "../utils/storage";
 import { generateAlternativeMission, generateCoachResponse } from "../utils/MockCoach";
 import { pad, roman } from "../utils/format";
 import { useMe } from "../lib/useMe";
+import { useMissions } from "../lib/useMissions";
 import { Shell, Wordmark } from "../components/Shell";
 import { Stat } from "../components/Stat";
 import { Celebration } from "../components/Celebration";
@@ -24,8 +25,12 @@ const ADJUST_PATTERN = /^\s*adjust\s+because\s*:?\s*/i;
 
 export function Dashboard() {
   const { snapshot: me, loading, error, setSnapshot } = useMe();
+  const onboarded = me?.profile.onboarding_complete ?? false;
+  // Only fetch missions once we know the user is onboarded — pre-onboarding
+  // there are none seeded yet and /missions would return an empty list.
+  const { missions, loading: missionsLoading, error: missionsError } = useMissions(onboarded);
 
-  if (loading) {
+  if (loading || (onboarded && (missionsLoading || missions === null))) {
     return (
       <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
         <div className="mx-auto flex min-h-screen w-full max-w-[820px] flex-col items-center justify-center px-gutter">
@@ -36,13 +41,13 @@ export function Dashboard() {
     );
   }
 
-  if (error?.status === 401) return <Navigate to="/login" replace />;
-  if (error || !me) {
+  if (error?.status === 401 || missionsError?.status === 401) return <Navigate to="/login" replace />;
+  if (error || missionsError || !me) {
     return (
       <main className="min-h-screen bg-sauce-black text-sauce-cream noise">
         <div className="mx-auto flex min-h-screen w-full max-w-[820px] flex-col items-center justify-center gap-6 px-gutter text-center">
           <Wordmark size="sm" />
-          <p className="mono-folio text-sauce-gold">{error?.message ?? "Couldn't load your profile."}</p>
+          <p className="mono-folio text-sauce-gold">{(error || missionsError)?.message ?? "Couldn't load your profile."}</p>
         </div>
       </main>
     );
@@ -68,9 +73,10 @@ export function Dashboard() {
     );
   }
 
-  // Onboarded — mirror server snapshot into the localStorage keys the
-  // existing dashboard UI still reads from, then render it.
+  // Onboarded — mirror server snapshot + missions into the localStorage keys
+  // the existing dashboard UI still reads from, then render it.
   bootstrapFromSnapshot(me);
+  if (missions) bootstrapMissionsFromApi(missions);
   return <DashboardActive />;
 }
 
@@ -107,7 +113,7 @@ function DashboardActive() {
     setComposerPrefill({ value: prompt, nonce: Date.now() });
   }
 
-  const mission = state.missions.find((m) => m.mission_number === state.user.current_day) || state.missions.at(-1)!;
+  const mission = state.missions.find((m) => m.mission_number === state.user.current_day) || state.missions[state.missions.length - 1];
   const revenueWin = state.checkins.some((c) => /sale|sold|paid|customer|client|dollar|revenue|\$/i.test(c.note || ""));
   const chatStarted = dashChat.length > 0;
   const chatVisible = chatStarted && !chatHidden;
